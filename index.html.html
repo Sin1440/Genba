@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="現場写真PDF">
+<title>現場写真PDF</title>
+<style>
+  :root{
+    --paper:#F3F4F1; --desk:#DFE2DC; --ink:#1F2428; --steel:#55636D;
+    --line:#CBD0C9; --yellow:#F5C400; --yellow-d:#DDB000; --red:#B8352B;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","BIZ UDPGothic","Yu Gothic",system-ui,sans-serif;color:var(--ink);background:var(--paper);line-height:1.6;font-size:15px;-webkit-text-size-adjust:100%}
+  button,input{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+  .app{display:grid;grid-template-columns:minmax(320px,390px) 1fr;min-height:100vh}
+  .panel{display:flex;flex-direction:column;border-right:1px solid var(--line);height:100vh;position:sticky;top:0}
+  .panel-body{padding:28px 24px 24px;overflow:auto;display:flex;flex-direction:column;gap:28px;flex:1;-webkit-overflow-scrolling:touch}
+  h1{font-size:1.6rem;line-height:1.25;margin:0;letter-spacing:.02em}
+  .lede{margin:8px 0 0;color:var(--steel);font-size:.9rem}
+  h2{font-size:1rem;margin:0 0 12px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--ink);background:#fff;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:700;min-height:46px}
+  .btn:hover{background:#fafaf8}
+  .btn-primary{background:var(--yellow)}
+  .btn-primary:hover{background:var(--yellow-d)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-text{border:none;background:none;color:var(--red);padding:8px 4px;cursor:pointer;font-size:.9rem}
+  .btn-text:disabled{opacity:.4;cursor:not-allowed}
+
+  .add{width:100%;padding:16px;border-style:dashed;font-size:1rem}
+  .hint{font-size:.82rem;color:var(--steel);margin:8px 0 0}
+
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .field span{font-size:.85rem;color:var(--steel)}
+  .field input{border:1px solid var(--line);background:#fff;border-radius:6px;padding:9px 10px;min-height:44px;font-size:16px}
+  .check{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer}
+  .check input{width:20px;height:20px;accent-color:var(--ink)}
+  .check.off{opacity:.45}
+
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--ink);border-radius:6px;overflow:hidden;margin-bottom:10px}
+  .seg label{position:relative;cursor:pointer}
+  .seg input{position:absolute;opacity:0;inset:0}
+  .seg span{display:block;text-align:center;padding:10px 4px;font-size:.9rem}
+  .seg label + label span{border-left:1px solid var(--ink)}
+  .seg input:checked + span{background:var(--ink);color:#fff}
+  .seg input:focus-visible + span{outline:2px solid var(--yellow);outline-offset:-4px}
+
+  .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .pat{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.78rem;color:var(--steel)}
+  .g{display:grid;width:36px;aspect-ratio:210/297;gap:2px;padding:3px;background:#fff;border:1px solid var(--line)}
+  .g i{background:var(--line)}
+  .g2{grid-template-rows:1fr 1fr}
+  .g4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+  .g6{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr)}
+  .pat.on{color:var(--ink);font-weight:700}
+  .pat.on .g{border-color:var(--ink)}
+  .pat.on .g i{background:var(--yellow)}
+
+  .list{list-style:none;margin:0;padding:0}
+  .divider{font-size:.8rem;color:var(--steel);padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .item{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:6px 0}
+  .thumb{width:56px;height:56px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+  .thumb img{max-width:100%;max-height:100%;transition:transform .2s}
+  .meta{min-width:0}
+  .meta b{display:block;font-size:.9rem}
+  .meta small{display:block;color:var(--steel);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tools{display:flex;gap:2px}
+  .tools button{width:38px;height:38px;border:1px solid transparent;background:none;border-radius:5px;cursor:pointer;font-size:.9rem}
+  .tools button:hover{border-color:var(--line);background:#fff}
+  .tools button:disabled{opacity:.25;cursor:default;background:none;border-color:transparent}
+  .tools .del{color:var(--red)}
+
+  .actions{padding:14px 24px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--paper)}
+  .action-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .action-foot{display:flex;align-items:flex-start;gap:12px;margin-top:8px}
+  .action-foot .status{flex:1}
+  .status{font-size:.85rem;color:var(--steel);margin:0;min-height:1.3em;padding-top:6px}
+  .status.err{color:var(--red)}
+  [hidden]{display:none!important}
+
+  .overlay{position:fixed;inset:0;background:rgba(31,36,40,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;z-index:20}
+  .sheet-panel{background:var(--paper);border-radius:10px;max-width:640px;width:100%;padding:24px;display:flex;flex-direction:column;gap:20px}
+  .sheet-panel h2{font-size:1.15rem;margin:0}
+  .sheet-panel p{margin:0;font-size:.9rem}
+  .sheet-panel h3{font-size:.95rem;margin:0 0 8px}
+  .sheet-panel .hint{margin-top:6px}
+  .pdf-link{display:flex;width:100%;text-decoration:none;color:var(--ink)}
+  .page-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .page-imgs figure{margin:0}
+  .page-imgs img{display:block;width:100%;background:#fff;border:1px solid var(--line);-webkit-touch-callout:default}
+  .page-imgs figcaption{font-size:.78rem;color:var(--steel);margin-top:4px}
+
+  .desk{background:var(--desk);padding:40px 32px;overflow:auto}
+  .sheets{display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+  .sheet{margin:0;width:min(100%,380px)}
+  .sheet canvas{display:block;width:100%;aspect-ratio:210/297;background:#fff;box-shadow:0 1px 0 #b8bcb4,0 10px 20px -12px rgba(31,36,40,.45)}
+  .sheet figcaption{display:flex;justify-content:space-between;font-size:.82rem;color:var(--steel);margin-top:8px}
+  .empty{width:min(100%,380px);aspect-ratio:210/297;border:2px dashed #aab0a8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:var(--steel)}
+  .empty p{margin:0}
+
+  body.dragging .desk{outline:4px solid var(--yellow);outline-offset:-4px}
+
+  @media (max-width:820px){
+    .app{display:flex;flex-direction:column}
+    .panel{position:static;height:auto;border-right:none}
+    .panel-body{padding:20px 16px}
+    .actions{position:sticky;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5}
+    .desk{padding:24px 16px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <div class="panel-body">
+      <header>
+        <h1>現場写真PDF</h1>
+        <p class="lede">巡視で撮った写真をA4に並べ、手書きで追記できるメモ欄付きのPDFにします。1ページ最大6枚、7枚目からは次のページへ送ります。</p>
+      </header>
+
+      <section>
+        <button class="btn add" id="addBtn" type="button">写真を追加</button>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        <p class="hint">パソコンでは、写真をこの画面にドラッグしても追加できます。</p>
+      </section>
+
+      <section>
+        <h2>記録情報</h2>
+        <label class="field"><span>件名（前回の入力を引き継ぎます）</span>
+          <input type="text" id="title" list="recentTitles" autocomplete="off" placeholder="例：〇〇ビル新築工事 定期巡視">
+        </label>
+        <datalist id="recentTitles"></datalist>
+        <label class="field"><span>巡視日</span><input type="date" id="date"></label>
+        <label class="check"><input type="checkbox" id="showHeader" checked>件名と日付をページ上部に入れる</label>
+        <label class="check"><input type="checkbox" id="showNumbers" checked>写真に番号を入れる</label>
+      </section>
+
+      <section>
+        <h2>追記用のメモ欄</h2>
+        <div class="seg" role="radiogroup" aria-label="メモ欄の広さ">
+          <label><input type="radio" name="memo" value="none"><span>なし</span></label>
+          <label><input type="radio" name="memo" value="s" checked><span>少なめ</span></label>
+          <label><input type="radio" name="memo" value="m"><span>標準</span></label>
+          <label><input type="radio" name="memo" value="l"><span>多め</span></label>
+        </div>
+        <label class="check" id="rulesWrap"><input type="checkbox" id="showRules" checked>メモ欄に罫線を入れる</label>
+        <p class="hint">各写真の下に書き込み用の空きを取ります。広くするほど写真は小さくなります。</p>
+      </section>
+
+      <section>
+        <h2>配置のルール</h2>
+        <div class="legend">
+          <div class="pat" data-pat="1"><span class="g"><i></i></span>1枚</div>
+          <div class="pat" data-pat="2"><span class="g g2"><i></i><i></i></span>2枚</div>
+          <div class="pat" data-pat="4"><span class="g g4"><i></i><i></i><i></i><i></i></span>3〜4枚</div>
+          <div class="pat" data-pat="6"><span class="g g6"><i></i><i></i><i></i><i></i><i></i><i></i></span>5〜6枚</div>
+        </div>
+      </section>
+
+      <section>
+        <h2 id="listHead">写真（0枚）</h2>
+        <ol class="list" id="list"></ol>
+      </section>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="shareBtn" type="button" style="width:100%" disabled>ノートアプリで開く</button>
+      <div class="action-foot">
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <button class="btn-text" id="clearBtn" type="button" disabled>すべて削除</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="overlay" id="exportPanel" hidden role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="sheet-panel">
+      <h2 id="exportTitle">ここから取り出してください</h2>
+      <p>今開いている画面では、iPadの共有メニューを直接開けません。下のどちらかの方法で、保存やノートアプリへの送信ができます。</p>
+      <section>
+        <h3>PDFとして取り出す</h3>
+        <a class="btn btn-primary pdf-link" id="pdfLink" target="_blank" rel="noopener">PDFを開く</a>
+        <p class="hint">PDFが開いたら、画面の共有ボタンから「"ファイル"に保存」やMetaMoJi Note 2を選べます。開かない場合は、このボタンを長押しして「リンク先をダウンロード」を選んでください。</p>
+      </section>
+      <section>
+        <h3>ページ画像として取り出す</h3>
+        <p class="hint">画像を長押しして「共有」を選ぶと、Note2に送ったり「ファイル」に保存したりできます。</p>
+        <div class="page-imgs" id="pageImgs"></div>
+      </section>
+      <button class="btn" id="closePanel" type="button">閉じる</button>
+    </div>
+  </div>
+
+  <main class="desk" aria-label="ページのプレビュー">
+    <div class="sheets" id="sheets"></div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const PER_PAGE = 6;
+  const PAGE_W_MM = 210, PAGE_H_MM = 297;
+  const EXPORT_W = 1654, EXPORT_H = 2339; // A4 約200dpi
+  const FONT = '"Hiragino Sans", "Hiragino Kaku Gothic ProN", "BIZ UDPGothic", "Yu Gothic", sans-serif';
+  const MEMO_RATIO = { none: 0, s: 0.25, m: 0.4, l: 0.55 };
+  const RULE_PITCH_MM = 7;
+  const STORE_KEY = 'genba-photo-pdf-settings-v2';
+  const OLD_STORE_KEY = 'genba-photo-pdf-settings';
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    add: $('addBtn'), file: $('fileInput'), title: $('title'), recent: $('recentTitles'), date: $('date'),
+    showHeader: $('showHeader'), showNumbers: $('showNumbers'), showRules: $('showRules'), rulesWrap: $('rulesWrap'),
+    list: $('list'), listHead: $('listHead'), sheets: $('sheets'),
+    share: $('shareBtn'), clear: $('clearBtn'), status: $('status')
+  };
+
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  const state = {
+    photos: [], title: '', date: today, showHeader: true, showNumbers: true,
+    memo: 's', showRules: true, recentTitles: [], busy: false, working: false, output: null
+  };
+  let uid = 0;
+
+
+  // ---------- 設定の保存（件名など） ----------
+  const store = {
+    async read(key){
+      if (window.storage){
+        try { const r = await window.storage.get(key, false); return r ? JSON.parse(r.value) : null; }
+        catch (e) { return null; }
+      }
+      try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+    },
+    async load(){
+      const cur = await this.read(STORE_KEY);
+      if (cur) return cur;
+      const old = await this.read(OLD_STORE_KEY);
+      return old ? { title: old.title, recentTitles: old.recentTitles } : null;
+    },
+    async save(obj){
+      const v = JSON.stringify(obj);
+      if (window.storage){
+        try { await window.storage.set(STORE_KEY, v, false); } catch (e) { /* 保存できない環境 */ }
+        return;
+      }
+      try { localStorage.setItem(STORE_KEY, v); } catch (e) { /* 保存できない環境 */ }
+    }
+  };
+  let saveTimer = 0;
+  function persist(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => store.save({
+      title: state.title, showHeader: state.showHeader, showNumbers: state.showNumbers,
+      memo: state.memo, showRules: state.showRules, recentTitles: state.recentTitles
+    }), 400);
+  }
+  function rememberTitle(){
+    const t = state.title.trim();
+    if (!t) return;
+    state.recentTitles = [t, ...state.recentTitles.filter(x => x !== t)].slice(0, 8);
+    renderRecent();
+    persist();
+  }
+  function renderRecent(){
+    els.recent.innerHTML = '';
+    state.recentTitles.forEach(t => { const o = document.createElement('option'); o.value = t; els.recent.appendChild(o); });
+  }
+  function applySettingsToForm(){
+    els.title.value = state.title;
+    els.date.value = state.date;
+    els.showHeader.checked = state.showHeader;
+    els.showNumbers.checked = state.showNumbers;
+    els.showRules.checked = state.showRules;
+    const r = document.querySelector(`input[name="memo"][value="${state.memo}"]`);
+    if (r) r.checked = true;
+    syncRulesEnabled();
+    renderRecent();
+  }
+  function syncRulesEnabled(){
+    const off = state.memo === 'none';
+    els.showRules.disabled = off;
+    els.rulesWrap.classList.toggle('off', off);
+  }
+
+  // ---------- レイアウト ----------
+  function patternFor(n){ return n <= 1 ? 1 : n === 2 ? 2 : n <= 4 ? 4 : 6; }
+  function gridFor(n){
+    return { 1:{cols:1,rows:1}, 2:{cols:1,rows:2}, 4:{cols:2,rows:2}, 6:{cols:2,rows:3} }[patternFor(n)];
+  }
+  function paginate(list){
+    const pages = [];
+    for (let i = 0; i < list.length; i += PER_PAGE) pages.push(list.slice(i, i + PER_PAGE));
+    return pages;
+  }
+  function formatDate(v){
+    if (!v) return '';
+    const [y,m,d] = v.split('-').map(Number);
+    return `${y}年${m}月${d}日`;
+  }
+  function fitText(ctx, text, max){
+    if (ctx.measureText(text).width <= max) return text;
+    let t = text;
+    while (t.length && ctx.measureText(t + '…').width > max) t = t.slice(0, -1);
+    return t + '…';
+  }
+  function srcSize(src){ return { w: src.naturalWidth || src.width, h: src.naturalHeight || src.height }; }
+
+  // 写真を枠内に全体表示（左右中央・上寄せ）
+  function drawFitted(ctx, src, rot, x, y, w, h){
+    const { w: sw, h: sh } = srcSize(src);
+    const turned = rot % 180 !== 0;
+    const rw = turned ? sh : sw, rh = turned ? sw : sh;
+    const sc = Math.min(w / rw, h / rh);
+    const dw = rw * sc, dh = rh * sc;
+    const cx = x + w / 2, cy = y + dh / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot * Math.PI / 180);
+    ctx.drawImage(src, -sw * sc / 2, -sh * sc / 2, sw * sc, sh * sc);
+    ctx.restore();
+    return { x: cx - dw / 2, y, w: dw, h: dh };
+  }
+
+  function drawBadge(ctx, text, x, y, s){
+    const fs = 3 * s, pad = 1.2 * s;
+    ctx.font = `700 ${fs}px ${FONT}`;
+    const tw = ctx.measureText(text).width;
+    ctx.fillStyle = '#1F2428';
+    ctx.fillRect(x, y, tw + pad * 2, fs + pad * 1.6);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + pad, y + (fs + pad * 1.6) / 2);
+  }
+
+  function drawRules(ctx, x, y, w, h, s){
+    const pitch = RULE_PITCH_MM * s;
+    ctx.strokeStyle = '#C9CED2';
+    ctx.lineWidth = Math.max(1, 0.25 * s);
+    ctx.beginPath();
+    for (let ly = y + pitch; ly <= y + h + 0.5; ly += pitch){
+      const yy = Math.round(ly) + 0.5;
+      ctx.moveTo(x, yy); ctx.lineTo(x + w, yy);
+    }
+    ctx.stroke();
+  }
+
+  function drawPage(ctx, W, H, items, startIndex, pageNo, totalPages, getSrc){
+    const s = W / PAGE_W_MM;
+    const M = 10 * s;
+    const ratio = MEMO_RATIO[state.memo] || 0;
+    const GAP = (ratio ? 5 : 4) * s;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.imageSmoothingQuality = 'high';
+
+    let top = M;
+    const bottom = H - M;
+    const title = state.title.trim();
+    const dateText = formatDate(state.date);
+
+    if (state.showHeader && (title || dateText)){
+      const baseline = M + 4.2 * s;
+      ctx.fillStyle = '#1F2428';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = `400 ${3.4 * s}px ${FONT}`;
+      const dw = dateText ? ctx.measureText(dateText).width : 0;
+      ctx.textAlign = 'right';
+      if (dateText) ctx.fillText(dateText, W - M, baseline);
+      ctx.font = `700 ${4.2 * s}px ${FONT}`;
+      ctx.textAlign = 'left';
+      if (title) ctx.fillText(fitText(ctx, title, W - 2 * M - dw - 6 * s), M, baseline);
+      const ly = baseline + 2.5 * s;
+      ctx.strokeStyle = '#1F2428';
+      ctx.lineWidth = Math.max(1, 0.3 * s);
+      ctx.beginPath(); ctx.moveTo(M, ly); ctx.lineTo(W - M, ly); ctx.stroke();
+      top = ly + 4 * s;
+    }
+
+    if (totalPages > 1){
+      ctx.fillStyle = '#7A858C';
+      ctx.font = `400 ${2.8 * s}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${pageNo} / ${totalPages}`, W / 2, H - M / 2);
+    }
+
+    const { cols, rows } = gridFor(items.length);
+    const aw = W - 2 * M, ah = bottom - top;
+    const cw = (aw - GAP * (cols - 1)) / cols;
+    const ch = (ah - GAP * (rows - 1)) / rows;
+    const memoH = ch * ratio;
+    const photoH = ch - memoH - (ratio ? 1.5 * s : 0);
+
+    items.forEach((p, i) => {
+      const c = i % cols, r = Math.floor(i / cols);
+      const x = M + c * (cw + GAP), y = top + r * (ch + GAP);
+      const src = getSrc(p);
+      if (!src) return;
+      const vis = drawFitted(ctx, src, p.rot, x, y, cw, photoH);
+      if (state.showNumbers) drawBadge(ctx, `No.${startIndex + i + 1}`, vis.x, vis.y, s);
+      if (ratio && state.showRules) drawRules(ctx, x, y + ch - memoH, cw, memoH, s);
+    });
+  }
+
+  // ---------- 写真の読み込み ----------
+  function scaleTo(src, max){
+    const { w, h } = srcSize(src);
+    const r = Math.min(1, max / Math.max(w, h));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * r));
+    c.height = Math.max(1, Math.round(h * r));
+    const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  async function loadImage(blob){
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      return img;
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  async function loadPhoto(file){
+    const img = await loadImage(file);           // <img> はEXIFの向きを反映して読み込む
+    const full = scaleTo(img, 2000);
+    const blob = await new Promise((res, rej) => full.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/jpeg', 0.9));
+    const preview = scaleTo(full, 640);
+    full.width = full.height = 0;
+    return { id: ++uid, name: file.name, blob, url: URL.createObjectURL(blob), preview, rot: 0 };
+  }
+
+  async function decodeForExport(blob){
+    if ('createImageBitmap' in window){
+      try { return await createImageBitmap(blob); } catch (e) { /* fallback */ }
+    }
+    return loadImage(blob);
+  }
+
+  function setStatus(msg, isErr = false){
+    els.status.textContent = msg;
+    els.status.classList.toggle('err', isErr);
+  }
+
+  async function addFiles(fileList){
+    const files = [...fileList].filter(f => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
+    if (!files.length){ setStatus('画像ファイルが見つかりませんでした。JPEGかPNGの写真を選んでください。', true); return; }
+    state.busy = true; updateButtons();
+    const failed = [];
+    for (let i = 0; i < files.length; i++){
+      setStatus(`読み込み中… ${i + 1} / ${files.length}枚`);
+      try {
+        state.photos.push(await loadPhoto(files[i]));
+        render();
+      } catch (e) { failed.push(files[i].name); }
+    }
+    state.busy = false;
+    invalidate();
+    if (failed.length) setStatus(`${failed.join('、')} を読み込めませんでした。JPEGかPNGに変換してから追加してください。`, true);
+    else setStatus(`${files.length}枚を追加しました。`);
+    render();
+  }
+
+  // ---------- 描画 ----------
+  function renderList(){
+    els.listHead.textContent = `写真（${state.photos.length}枚）`;
+    els.list.innerHTML = '';
+    const n = state.photos.length;
+    state.photos.forEach((p, i) => {
+      if (i % PER_PAGE === 0){
+        const d = document.createElement('li');
+        d.className = 'divider';
+        d.textContent = `${i / PER_PAGE + 1}ページ目`;
+        els.list.appendChild(d);
+      }
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.innerHTML = `
+        <div class="thumb"><img alt="" src="${p.url}" style="transform:rotate(${p.rot}deg)"></div>
+        <div class="meta"><b>No.${i + 1}</b><small></small></div>
+        <div class="tools">
+          <button type="button" data-act="up" data-id="${p.id}" aria-label="No.${i + 1}を前へ" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" data-act="down" data-id="${p.id}" aria-label="No.${i + 1}を後ろへ" ${i === n - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" data-act="rot" data-id="${p.id}" aria-label="No.${i + 1}を90度回転" title="90度回転">⟳</button>
+          <button type="button" class="del" data-act="del" data-id="${p.id}" aria-label="No.${i + 1}を削除" title="削除">✕</button>
+        </div>`;
+      li.querySelector('small').textContent = p.name;
+      els.list.appendChild(li);
+    });
+  }
+
+  function renderPreviews(){
+    const pages = paginate(state.photos);
+    els.sheets.innerHTML = '';
+    document.querySelectorAll('.pat').forEach(el => el.classList.remove('on'));
+    if (!pages.length){
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.innerHTML = '<p>写真を追加すると、ここにA4のページが並びます。</p>';
+      const b = document.createElement('button');
+      b.className = 'btn btn-primary'; b.type = 'button'; b.textContent = '写真を追加';
+      b.onclick = () => els.file.click();
+      e.appendChild(b);
+      els.sheets.appendChild(e);
+      return;
+    }
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    pages.forEach((items, pi) => {
+      document.querySelector(`.pat[data-pat="${patternFor(items.length)}"]`)?.classList.add('on');
+      const fig = document.createElement('figure');
+      fig.className = 'sheet';
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(380 * dpr);
+      cv.height = Math.round(cv.width * PAGE_H_MM / PAGE_W_MM);
+      cv.setAttribute('role', 'img');
+      cv.setAttribute('aria-label', `${pi + 1}ページ目、写真${items.length}枚`);
+      drawPage(cv.getContext('2d'), cv.width, cv.height, items, pi * PER_PAGE, pi + 1, pages.length, p => p.preview);
+      const cap = document.createElement('figcaption');
+      cap.innerHTML = `<span>${pi + 1}ページ目</span><span>${items.length}枚</span>`;
+      fig.append(cv, cap);
+      els.sheets.appendChild(fig);
+    });
+  }
+
+  function updateButtons(){
+    const has = state.photos.length > 0;
+    els.share.disabled = !has || state.busy || state.working;
+    els.clear.disabled = !has || state.busy || state.working;
+    els.add.disabled = state.busy;
+  }
+
+  // 内容が変わったら作成済みPDFを破棄し、少し待ってから裏で作り直す
+  let buildToken = 0, buildPromise = null, prebuildTimer = 0;
+  function releaseOutput(out){
+    if (!out) return;
+    URL.revokeObjectURL(out.pdfUrl);
+    out.pageUrls.forEach(u => URL.revokeObjectURL(u));
+  }
+  function invalidate(){
+    if (state.output && !panelOpen) releaseOutput(state.output);
+    state.output = null;
+    buildToken++;
+    schedulePrebuild();
+    updateButtons();
+  }
+  function schedulePrebuild(){
+    clearTimeout(prebuildTimer);
+    if (!state.photos.length) return;
+    prebuildTimer = setTimeout(() => {
+      if (state.busy || state.working){ schedulePrebuild(); return; }
+      ensurePdf(true).catch(() => {});
+    }, 1200);
+  }
+  function ensurePdf(quiet){
+    if (state.output) return Promise.resolve(state.output);
+    if (buildPromise) return buildPromise;
+    const token = buildToken;
+    buildPromise = (async () => {
+      try {
+        const out = await buildPdf(quiet);
+        if (token === buildToken) state.output = out;
+        return out;
+      } finally { buildPromise = null; }
+    })();
+    return buildPromise;
+  }
+  // 途中で内容が変わった場合は最新の内容で作り直す
+  async function getFreshPdf(){
+    for (let i = 0; i < 5; i++){
+      const out = await ensurePdf(false);
+      if (state.output === out) return out;
+    }
+    throw new Error('changed');
+  }
+
+  let raf = 0;
+  function render(){
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => { renderList(); renderPreviews(); updateButtons(); });
+  }
+  function renderPreviewOnly(){
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(renderPreviews);
+  }
+  function onSettingChange(){ invalidate(); persist(); renderPreviewOnly(); }
+
+  // ---------- PDF ----------
+  function fileName(){
+    const base = (state.title.trim() || '現場巡視記録').replace(/[\\/:*?"<>|]/g, '_');
+    const d = (state.date || today).replace(/-/g, '');
+    return `${base}_${d}.pdf`;
+  }
+
+  // 外部ライブラリを使わずにPDFを組み立てる（1ページ＝JPEG画像1枚）
+  function makePdf(pages){
+    const enc = new TextEncoder();
+    const parts = [], offsets = [];
+    let offset = 0;
+    const push = d => { const b = typeof d === 'string' ? enc.encode(d) : d; parts.push(b); offset += b.length; };
+    const obj = (num, body) => { offsets[num] = offset; push(`${num} 0 obj\n`); body(); push('\nendobj\n'); };
+    const W = 595.28, H = 841.89; // A4（pt）
+    const n = pages.length;
+    push('%PDF-1.4\n%\u00E2\u00E3\u00CF\u00D3\n');
+    obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
+    const kids = pages.map((_, i) => `${3 + i * 3} 0 R`).join(' ');
+    obj(2, () => push(`<< /Type /Pages /Kids [${kids}] /Count ${n} >>`));
+    pages.forEach((pg, i) => {
+      const p = 3 + i * 3, c = p + 1, im = p + 2;
+      obj(p, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${im} 0 R >> >> /Contents ${c} 0 R >>`));
+      const cs = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+      obj(c, () => push(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+      obj(im, () => {
+        push(`<< /Type /XObject /Subtype /Image /Width ${pg.w} /Height ${pg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.data.length} >>\nstream\n`);
+        push(pg.data);
+        push('\nendstream');
+      });
+    });
+    const xref = offset, size = 3 + n * 3;
+    let x = `xref\n0 ${size}\n0000000000 65535 f \n`;
+    for (let k = 1; k < size; k++) x += `${String(offsets[k]).padStart(10, '0')} 00000 n \n`;
+    push(x);
+    push(`trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+
+  async function buildPdf(quiet){
+    await fontsReady;
+    const pages = paginate(state.photos);
+    const cv = document.createElement('canvas');
+    cv.width = EXPORT_W; cv.height = EXPORT_H;
+    const ctx = cv.getContext('2d');
+    const jpegs = [], pageUrls = [];
+    for (let pi = 0; pi < pages.length; pi++){
+      if (!quiet) setStatus(`PDFを作成中… ${pi + 1} / ${pages.length}ページ`);
+      const items = pages[pi];
+      const srcs = new Map();
+      for (const p of items) srcs.set(p.id, await decodeForExport(p.blob));
+      drawPage(ctx, EXPORT_W, EXPORT_H, items, pi * PER_PAGE, pi + 1, pages.length, p => srcs.get(p.id));
+      srcs.forEach(b => b.close && b.close());
+      const jpg = await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/jpeg', 0.88));
+      jpegs.push({ w: EXPORT_W, h: EXPORT_H, data: new Uint8Array(await jpg.arrayBuffer()) });
+      pageUrls.push(URL.createObjectURL(jpg));
+    }
+    const name = fileName();
+    const blob = makePdf(jpegs);
+    return { name, blob, pageUrls, pdfUrl: URL.createObjectURL(blob), file: new File([blob], name, { type: 'application/pdf' }) };
+  }
+
+  function downloadBlob(blob, name){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  async function withWorking(fn){
+    if (state.working) return;
+    state.working = true; updateButtons();
+    try { await fn(); }
+    catch (e) {
+      console.error(e);
+      setStatus('PDFを作成できませんでした。写真の枚数を減らしてもう一度試してください。', true);
+    }
+    finally { state.working = false; updateButtons(); }
+  }
+
+  // どちらのボタンもiPadの共有メニューを開く。
+  // 共有メニューはタップ直後に開く必要があるため、準備済みのPDFがあればすぐ渡す。
+  function openShareSheet(kind){
+    const ready = state.output;
+    withWorking(async () => {
+      if (!ready) setStatus('PDFを準備中…');
+      const out = ready || await getFreshPdf();
+      const supported = !!navigator.share && (!navigator.canShare || navigator.canShare({ files: [out.file] }));
+      if (!supported){
+        showExportPanel(out);
+        return;
+      }
+      setStatus('共有メニューで開きたいノートアプリを選んでください。');
+      try {
+        await navigator.share({ files: [out.file], title: out.name });
+        rememberTitle();
+        setStatus('ノートアプリに送りました。');
+      } catch (e) {
+        if (e.name === 'AbortError'){
+          setStatus('キャンセルしました。');
+        } else if (e.name === 'NotAllowedError' && !ready){
+          setStatus('PDFの準備ができました。もう一度ボタンを押してください。');
+        } else {
+          showExportPanel(out);
+        }
+      }
+    });
+  }
+  // 共有メニューが使えない画面向け：PDFリンクとページ画像を表示
+  let panelOpen = false;
+  const panel = document.getElementById('exportPanel');
+  function showExportPanel(out){
+    panelOpen = true;
+    rememberTitle();
+    const link = document.getElementById('pdfLink');
+    link.href = out.pdfUrl;
+    link.setAttribute('download', out.name);
+    const box = document.getElementById('pageImgs');
+    box.innerHTML = '';
+    out.pageUrls.forEach((u, i) => {
+      const f = document.createElement('figure');
+      const img = document.createElement('img');
+      img.src = u; img.alt = `${i + 1}ページ目`;
+      const c = document.createElement('figcaption');
+      c.textContent = `${i + 1}ページ目`;
+      f.append(img, c);
+      box.appendChild(f);
+    });
+    panel.hidden = false;
+    setStatus('');
+    document.getElementById('closePanel').focus();
+  }
+  document.getElementById('closePanel').addEventListener('click', () => {
+    panel.hidden = true;
+    panelOpen = false;
+    els.share.focus();
+  });
+
+  const onShare = () => openShareSheet('send');
+
+  // ---------- イベント ----------
+  els.add.addEventListener('click', () => els.file.click());
+  els.file.addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+
+  els.title.addEventListener('input', e => { state.title = e.target.value; onSettingChange(); });
+  els.date.addEventListener('input', e => { state.date = e.target.value; invalidate(); renderPreviewOnly(); });
+  els.showHeader.addEventListener('change', e => { state.showHeader = e.target.checked; onSettingChange(); });
+  els.showNumbers.addEventListener('change', e => { state.showNumbers = e.target.checked; onSettingChange(); });
+  els.showRules.addEventListener('change', e => { state.showRules = e.target.checked; onSettingChange(); });
+  document.querySelectorAll('input[name="memo"]').forEach(r =>
+    r.addEventListener('change', e => { state.memo = e.target.value; syncRulesEnabled(); onSettingChange(); }));
+
+  els.list.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn || state.busy) return;
+    const id = Number(btn.dataset.id);
+    const i = state.photos.findIndex(p => p.id === id);
+    if (i < 0) return;
+    const arr = state.photos;
+    switch (btn.dataset.act){
+      case 'up': if (i > 0) [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]; break;
+      case 'down': if (i < arr.length - 1) [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]]; break;
+      case 'rot': arr[i].rot = (arr[i].rot + 90) % 360; break;
+      case 'del': URL.revokeObjectURL(arr[i].url); arr.splice(i, 1); break;
+    }
+    invalidate();
+    render();
+  });
+
+  els.clear.addEventListener('click', () => {
+    if (!confirm('すべての写真を削除しますか？')) return;
+    state.photos.forEach(p => URL.revokeObjectURL(p.url));
+    state.photos = [];
+    invalidate();
+    setStatus('');
+    render();
+  });
+
+  els.share.addEventListener('click', onShare);
+
+  let dragDepth = 0;
+  window.addEventListener('dragenter', e => { if (e.dataTransfer?.types.includes('Files')){ dragDepth++; document.body.classList.add('dragging'); } });
+  window.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; document.body.classList.remove('dragging'); } });
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    dragDepth = 0; document.body.classList.remove('dragging');
+    if (e.dataTransfer?.files?.length && !state.busy) addFiles(e.dataTransfer.files);
+  });
+
+  const fontsReady = Promise.resolve();
+
+  // 起動時：前回の件名・設定を復元
+  (async () => {
+    const saved = await store.load();
+    if (saved){
+      if (typeof saved.title === 'string') state.title = saved.title;
+      if (typeof saved.showHeader === 'boolean') state.showHeader = saved.showHeader;
+      if (typeof saved.showNumbers === 'boolean') state.showNumbers = saved.showNumbers;
+      if (typeof saved.showRules === 'boolean') state.showRules = saved.showRules;
+      if (saved.memo in MEMO_RATIO) state.memo = saved.memo;
+      if (Array.isArray(saved.recentTitles)) state.recentTitles = saved.recentTitles.filter(t => typeof t === 'string').slice(0, 8);
+    }
+    applySettingsToForm();
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
