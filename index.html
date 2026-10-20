@@ -42,7 +42,7 @@
   .check input{width:20px;height:20px;accent-color:var(--ink)}
   .check.off{opacity:.45}
 
-  .seg{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--ink);border-radius:6px;overflow:hidden;margin-bottom:10px}
+  .seg{display:grid;grid-template-columns:repeat(var(--n,4),1fr);border:1px solid var(--ink);border-radius:6px;overflow:hidden;margin-bottom:10px}
   .seg label{position:relative;cursor:pointer}
   .seg input{position:absolute;opacity:0;inset:0}
   .seg span{display:block;text-align:center;padding:10px 4px;font-size:.9rem}
@@ -51,15 +51,12 @@
   .seg input:focus-visible + span{outline:2px solid var(--yellow);outline-offset:-4px}
 
   .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .pat{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.78rem;color:var(--steel)}
+  .seg-label{display:block;font-size:.85rem;color:var(--steel);margin:0 0 6px}
   .g{display:grid;width:36px;aspect-ratio:210/297;gap:2px;padding:3px;background:#fff;border:1px solid var(--line)}
   .g i{background:var(--line)}
   .g2{grid-template-rows:1fr 1fr}
   .g4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
   .g6{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr)}
-  .pat.on{color:var(--ink);font-weight:700}
-  .pat.on .g{border-color:var(--ink)}
-  .pat.on .g i{background:var(--yellow)}
 
   .list{list-style:none;margin:0;padding:0}
   .divider{font-size:.8rem;color:var(--steel);padding:10px 0 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
@@ -98,7 +95,8 @@
   .desk{background:var(--desk);padding:40px 32px;overflow:auto}
   .sheets{display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
   .sheet{margin:0;width:min(100%,380px)}
-  .sheet canvas{display:block;width:100%;aspect-ratio:210/297;background:#fff;box-shadow:0 1px 0 #b8bcb4,0 10px 20px -12px rgba(31,36,40,.45)}
+  .sheet.land{width:min(100%,537px)}
+  .sheet canvas{display:block;width:100%;background:#fff;box-shadow:0 1px 0 #b8bcb4,0 10px 20px -12px rgba(31,36,40,.45)}
   .sheet figcaption{display:flex;justify-content:space-between;font-size:.82rem;color:var(--steel);margin-top:8px}
   .empty{width:min(100%,380px);aspect-ratio:210/297;border:2px dashed #aab0a8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:var(--steel)}
   .empty p{margin:0}
@@ -121,7 +119,7 @@
     <div class="panel-body">
       <header>
         <h1>現場写真PDF</h1>
-        <p class="lede">巡視で撮った写真をA4に並べ、手書きで追記できるメモ欄付きのPDFにします。1ページ最大6枚、7枚目からは次のページへ送ります。</p>
+        <p class="lede">巡視で撮った写真をA4に並べ、手書きで追記できるメモ欄付きのPDFにします。用紙の向きと1ページの枚数は自動でも、自分で選んでも作れます。</p>
       </header>
 
       <section>
@@ -154,13 +152,22 @@
       </section>
 
       <section>
-        <h2>配置のルール</h2>
-        <div class="legend">
-          <div class="pat" data-pat="1"><span class="g"><i></i></span>1枚</div>
-          <div class="pat" data-pat="2"><span class="g g2"><i></i><i></i></span>2枚</div>
-          <div class="pat" data-pat="4"><span class="g g4"><i></i><i></i><i></i><i></i></span>3〜4枚</div>
-          <div class="pat" data-pat="6"><span class="g g6"><i></i><i></i><i></i><i></i><i></i><i></i></span>5〜6枚</div>
+        <h2>レイアウト</h2>
+        <span class="seg-label" id="orientLabel">用紙の向き</span>
+        <div class="seg" style="--n:3" role="radiogroup" aria-labelledby="orientLabel">
+          <label><input type="radio" name="orient" value="auto" checked><span>自動</span></label>
+          <label><input type="radio" name="orient" value="portrait"><span>縦</span></label>
+          <label><input type="radio" name="orient" value="landscape"><span>横</span></label>
         </div>
+        <span class="seg-label" id="perLabel">1ページの写真の枚数</span>
+        <div class="seg" style="--n:5" role="radiogroup" aria-labelledby="perLabel">
+          <label><input type="radio" name="per" value="auto" checked><span>自動</span></label>
+          <label><input type="radio" name="per" value="1"><span>1枚</span></label>
+          <label><input type="radio" name="per" value="2"><span>2枚</span></label>
+          <label><input type="radio" name="per" value="4"><span>4枚</span></label>
+          <label><input type="radio" name="per" value="6"><span>6枚</span></label>
+        </div>
+        <p class="hint" id="layoutHint"></p>
       </section>
 
       <section>
@@ -227,7 +234,7 @@
 
   const state = {
     photos: [], title: '', date: today, showHeader: true, showNumbers: true,
-    memo: 's', showRules: true, recentTitles: [], busy: false, working: false, output: null
+    memo: 's', showRules: true, orient: 'auto', perPage: 'auto', recentTitles: [], busy: false, working: false, output: null
   };
   let uid = 0;
 
@@ -261,7 +268,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => store.save({
       title: state.title, showHeader: state.showHeader, showNumbers: state.showNumbers,
-      memo: state.memo, showRules: state.showRules, recentTitles: state.recentTitles
+      memo: state.memo, showRules: state.showRules, orient: state.orient, perPage: state.perPage, recentTitles: state.recentTitles
     }), 400);
   }
   function rememberTitle(){
@@ -283,6 +290,11 @@
     els.showRules.checked = state.showRules;
     const r = document.querySelector(`input[name="memo"][value="${state.memo}"]`);
     if (r) r.checked = true;
+    const o = document.querySelector(`input[name="orient"][value="${state.orient}"]`);
+    if (o) o.checked = true;
+    const pp = document.querySelector(`input[name="per"][value="${state.perPage}"]`);
+    if (pp) pp.checked = true;
+    renderLayoutHint();
     syncRulesEnabled();
     renderRecent();
   }
@@ -294,13 +306,47 @@
 
   // ---------- レイアウト ----------
   function patternFor(n){ return n <= 1 ? 1 : n === 2 ? 2 : n <= 4 ? 4 : 6; }
-  function gridFor(n){
-    return { 1:{cols:1,rows:1}, 2:{cols:1,rows:2}, 4:{cols:2,rows:2}, 6:{cols:2,rows:3} }[patternFor(n)];
+  // 縦向き：2枚は上下、6枚は2列×3段 ／ 横向き：2枚は左右、6枚は3列×2段
+  function gridFor(slots, orient){
+    const P = { 1:[1,1], 2:[1,2], 4:[2,2], 6:[2,3] }, L = { 1:[1,1], 2:[2,1], 4:[2,2], 6:[3,2] };
+    const [cols, rows] = (orient === 'landscape' ? L : P)[slots];
+    return { cols, rows };
+  }
+  function isLandscapePhoto(p){
+    let w = p.preview.width, h = p.preview.height;
+    if (p.rot % 180) [w, h] = [h, w];
+    return w > h;
+  }
+  // 自動：3〜4枚（2×2）のページで、横長の写真が半分以上なら用紙を横向きにする
+  function autoOrient(items, slots){
+    if (slots !== 4) return 'portrait';
+    const land = items.filter(isLandscapePhoto).length;
+    return land * 2 >= items.length ? 'landscape' : 'portrait';
   }
   function paginate(list){
+    const per = state.perPage === 'auto' ? PER_PAGE : Number(state.perPage);
     const pages = [];
-    for (let i = 0; i < list.length; i += PER_PAGE) pages.push(list.slice(i, i + PER_PAGE));
+    for (let i = 0; i < list.length; i += per){
+      const items = list.slice(i, i + per);
+      const slots = state.perPage === 'auto' ? patternFor(items.length) : per;
+      const orient = state.orient === 'auto' ? autoOrient(items, slots) : state.orient;
+      pages.push({ items, slots, orient, start: i });
+    }
     return pages;
+  }
+  function pageSize(orient, longPx){
+    const shortPx = Math.round(longPx * 210 / 297);
+    return orient === 'landscape' ? { w: longPx, h: shortPx } : { w: shortPx, h: longPx };
+  }
+  function renderLayoutHint(){
+    const el = document.getElementById('layoutHint');
+    const per = state.perPage === 'auto'
+      ? '枚数が自動のときは6枚ずつページに分け、1枚は全面、2枚は2分割、3〜4枚は4分割、5〜6枚は6分割で配置します。'
+      : `${state.perPage}枚ずつページに分けます。最後のページも同じ大きさで配置します。`;
+    const ori = state.orient === 'auto'
+      ? '向きが自動のときは、4分割のページで横長の写真が半分以上あれば用紙を横向きにします。'
+      : '';
+    el.textContent = per + ori;
   }
   function formatDate(v){
     if (!v) return '';
@@ -355,8 +401,9 @@
     ctx.stroke();
   }
 
-  function drawPage(ctx, W, H, items, startIndex, pageNo, totalPages, getSrc){
-    const s = W / PAGE_W_MM;
+  function drawPage(ctx, W, H, page, pageNo, totalPages, getSrc){
+    const { items, slots, orient, start: startIndex } = page;
+    const s = W / (orient === 'landscape' ? PAGE_H_MM : PAGE_W_MM);
     const M = 10 * s;
     const ratio = MEMO_RATIO[state.memo] || 0;
     const GAP = (ratio ? 5 : 4) * s;
@@ -395,7 +442,7 @@
       ctx.fillText(`${pageNo} / ${totalPages}`, W / 2, H - M / 2);
     }
 
-    const { cols, rows } = gridFor(items.length);
+    const { cols, rows } = gridFor(slots, orient);
     const aw = W - 2 * M, ah = bottom - top;
     const cw = (aw - GAP * (cols - 1)) / cols;
     const ch = (ah - GAP * (rows - 1)) / rows;
@@ -481,11 +528,13 @@
     els.listHead.textContent = `写真（${state.photos.length}枚）`;
     els.list.innerHTML = '';
     const n = state.photos.length;
+    const starts = new Map(paginate(state.photos).map((pg, pi) => [pg.start, { no: pi + 1, orient: pg.orient }]));
     state.photos.forEach((p, i) => {
-      if (i % PER_PAGE === 0){
+      if (starts.has(i)){
+        const info = starts.get(i);
         const d = document.createElement('li');
         d.className = 'divider';
-        d.textContent = `${i / PER_PAGE + 1}ページ目`;
+        d.textContent = `${info.no}ページ目（${info.orient === 'landscape' ? '横' : '縦'}）`;
         els.list.appendChild(d);
       }
       const li = document.createElement('li');
@@ -507,7 +556,6 @@
   function renderPreviews(){
     const pages = paginate(state.photos);
     els.sheets.innerHTML = '';
-    document.querySelectorAll('.pat').forEach(el => el.classList.remove('on'));
     if (!pages.length){
       const e = document.createElement('div');
       e.className = 'empty';
@@ -520,18 +568,19 @@
       return;
     }
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    pages.forEach((items, pi) => {
-      document.querySelector(`.pat[data-pat="${patternFor(items.length)}"]`)?.classList.add('on');
+    pages.forEach((pg, pi) => {
+      const land = pg.orient === 'landscape';
       const fig = document.createElement('figure');
-      fig.className = 'sheet';
+      fig.className = land ? 'sheet land' : 'sheet';
       const cv = document.createElement('canvas');
-      cv.width = Math.round(380 * dpr);
-      cv.height = Math.round(cv.width * PAGE_H_MM / PAGE_W_MM);
+      const sz = pageSize(pg.orient, Math.round(537 * dpr));
+      cv.width = sz.w; cv.height = sz.h;
+      cv.style.aspectRatio = land ? '297 / 210' : '210 / 297';
       cv.setAttribute('role', 'img');
-      cv.setAttribute('aria-label', `${pi + 1}ページ目、写真${items.length}枚`);
-      drawPage(cv.getContext('2d'), cv.width, cv.height, items, pi * PER_PAGE, pi + 1, pages.length, p => p.preview);
+      cv.setAttribute('aria-label', `${pi + 1}ページ目、${land ? '横' : '縦'}向き、写真${pg.items.length}枚`);
+      drawPage(cv.getContext('2d'), cv.width, cv.height, pg, pi + 1, pages.length, p => p.preview);
       const cap = document.createElement('figcaption');
-      cap.innerHTML = `<span>${pi + 1}ページ目</span><span>${items.length}枚</span>`;
+      cap.innerHTML = `<span>${pi + 1}ページ目（${land ? '横' : '縦'}）</span><span>${pg.items.length}枚</span>`;
       fig.append(cv, cap);
       els.sheets.appendChild(fig);
     });
@@ -613,7 +662,6 @@
     let offset = 0;
     const push = d => { const b = typeof d === 'string' ? enc.encode(d) : d; parts.push(b); offset += b.length; };
     const obj = (num, body) => { offsets[num] = offset; push(`${num} 0 obj\n`); body(); push('\nendobj\n'); };
-    const W = 595.28, H = 841.89; // A4（pt）
     const n = pages.length;
     push('%PDF-1.4\n%\u00E2\u00E3\u00CF\u00D3\n');
     obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
@@ -621,6 +669,7 @@
     obj(2, () => push(`<< /Type /Pages /Kids [${kids}] /Count ${n} >>`));
     pages.forEach((pg, i) => {
       const p = 3 + i * 3, c = p + 1, im = p + 2;
+      const [W, H] = pg.w > pg.h ? [841.89, 595.28] : [595.28, 841.89]; // A4（pt）
       obj(p, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${im} 0 R >> >> /Contents ${c} 0 R >>`));
       const cs = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
       obj(c, () => push(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
@@ -642,18 +691,19 @@
     await fontsReady;
     const pages = paginate(state.photos);
     const cv = document.createElement('canvas');
-    cv.width = EXPORT_W; cv.height = EXPORT_H;
     const ctx = cv.getContext('2d');
     const jpegs = [], pageUrls = [];
     for (let pi = 0; pi < pages.length; pi++){
       if (!quiet) setStatus(`PDFを作成中… ${pi + 1} / ${pages.length}ページ`);
-      const items = pages[pi];
+      const pg = pages[pi];
+      const sz = pageSize(pg.orient, EXPORT_H);
+      cv.width = sz.w; cv.height = sz.h;
       const srcs = new Map();
-      for (const p of items) srcs.set(p.id, await decodeForExport(p.blob));
-      drawPage(ctx, EXPORT_W, EXPORT_H, items, pi * PER_PAGE, pi + 1, pages.length, p => srcs.get(p.id));
+      for (const p of pg.items) srcs.set(p.id, await decodeForExport(p.blob));
+      drawPage(ctx, sz.w, sz.h, pg, pi + 1, pages.length, p => srcs.get(p.id));
       srcs.forEach(b => b.close && b.close());
       const jpg = await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('encode')), 'image/jpeg', 0.88));
-      jpegs.push({ w: EXPORT_W, h: EXPORT_H, data: new Uint8Array(await jpg.arrayBuffer()) });
+      jpegs.push({ w: sz.w, h: sz.h, data: new Uint8Array(await jpg.arrayBuffer()) });
       pageUrls.push(URL.createObjectURL(jpg));
     }
     const name = fileName();
@@ -751,6 +801,10 @@
   els.showRules.addEventListener('change', e => { state.showRules = e.target.checked; onSettingChange(); });
   document.querySelectorAll('input[name="memo"]').forEach(r =>
     r.addEventListener('change', e => { state.memo = e.target.value; syncRulesEnabled(); onSettingChange(); }));
+  document.querySelectorAll('input[name="orient"]').forEach(r =>
+    r.addEventListener('change', e => { state.orient = e.target.value; renderLayoutHint(); onSettingChange(); renderList(); }));
+  document.querySelectorAll('input[name="per"]').forEach(r =>
+    r.addEventListener('change', e => { state.perPage = e.target.value; renderLayoutHint(); onSettingChange(); renderList(); }));
 
   els.list.addEventListener('click', e => {
     const btn = e.target.closest('button[data-act]');
@@ -801,6 +855,8 @@
       if (typeof saved.showNumbers === 'boolean') state.showNumbers = saved.showNumbers;
       if (typeof saved.showRules === 'boolean') state.showRules = saved.showRules;
       if (saved.memo in MEMO_RATIO) state.memo = saved.memo;
+      if (['auto','portrait','landscape'].includes(saved.orient)) state.orient = saved.orient;
+      if (['auto','1','2','4','6'].includes(saved.perPage)) state.perPage = saved.perPage;
       if (Array.isArray(saved.recentTitles)) state.recentTitles = saved.recentTitles.filter(t => typeof t === 'string').slice(0, 8);
     }
     applySettingsToForm();
